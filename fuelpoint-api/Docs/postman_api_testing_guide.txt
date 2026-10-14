@@ -1,0 +1,194 @@
+================================================================================
+FUELPOINT API - POSTMAN TESTING GUIDE (CRUD: GROUPS, CUSTOMERS, WORKERS)
+================================================================================
+
+1. GENERAL SETUP
+--------------------------------------------------------------------------------
+Base URL: http://localhost:4000
+Header for all POST / PUT requests:
+  Content-Type: application/json
+
+
+================================================================================
+2. GROUPS API (CRUD)
+================================================================================
+
+[STEP 1: CREATE GROUP]
+Method: POST
+URL: http://localhost:4000/api/groups
+Headers:
+  Content-Type: application/json
+Body (raw JSON):
+{
+  "id": "grp-vip",
+  "name": "VIP Club",
+  "discount_percentage": 5.00,
+  "description": "Exclusive VIP customer tier",
+  "is_default": false,
+  "active": true
+}
+Expected Response: 201 Created
+
+--------------------------------------------------------------------------------
+[STEP 2: GET ALL GROUPS]
+Method: GET
+URL: http://localhost:4000/api/groups
+Expected Response: 200 OK
+
+--------------------------------------------------------------------------------
+[STEP 3: UPDATE GROUP]
+Method: PUT
+URL: http://localhost:4000/api/groups/grp-vip
+Headers:
+  Content-Type: application/json
+Body (raw JSON):
+{
+  "name": "VIP Club Gold",
+  "discount_percentage": 7.50,
+  "description": "Updated exclusive VIP tier",
+  "is_default": false,
+  "active": true
+}
+Expected Response: 200 OK
+
+--------------------------------------------------------------------------------
+[STEP 4: DELETE GROUP]
+Method: DELETE
+URL: http://localhost:4000/api/groups/grp-vip
+Expected Response: 200 OK (Note: Cannot delete 'grp-default')
+
+
+================================================================================
+3. CUSTOMERS API (CRUD)
+================================================================================
+
+[STEP 1: CREATE CUSTOMER]
+Method: POST
+URL: http://localhost:4000/api/customers
+Headers:
+  Content-Type: application/json
+Body (raw JSON):
+{
+  "name": "Aarav Sharma",
+  "phone": "+91 9876543210",
+  "email": "aarav.sharma@example.com",
+  "vehicle": "MH 12 AB 1234",
+  "password": "password123",
+  "group_id": "grp-default",
+  "status": "active"
+}
+Expected Response: 201 Created
+(Copy the generated "id" from response, e.g., CUS-01 or CUS-1001)
+
+--------------------------------------------------------------------------------
+[STEP 2: GET ALL CUSTOMERS]
+Method: GET
+URL: http://localhost:4000/api/customers
+Optional Query Params:
+  http://localhost:4000/api/customers?page=1&limit=10&search=Aarav&status=active
+Expected Response: 200 OK
+
+--------------------------------------------------------------------------------
+[STEP 3: UPDATE CUSTOMER]
+Method: PUT
+URL: http://localhost:4000/api/customers/<CUSTOMER_ID>
+Example: http://localhost:4000/api/customers/CUS-01
+Headers:
+  Content-Type: application/json
+Body (raw JSON):
+{
+  "name": "Aarav Sharma (Updated)",
+  "phone": "+91 9876543210",
+  "email": "aarav.sharma@example.com",
+  "vehicle": "MH 12 AB 9999",
+  "group_id": "grp-default",
+  "status": "active"
+}
+Expected Response: 200 OK
+
+--------------------------------------------------------------------------------
+[STEP 4: DELETE CUSTOMER]
+Method: DELETE
+URL: http://localhost:4000/api/customers/<CUSTOMER_ID>
+Example: http://localhost:4000/api/customers/CUS-01
+Expected Response: 200 OK
+
+
+================================================================================
+4. WORKERS API (CRUD)
+================================================================================
+* Important Constraints:
+  - status values: "active", "offline", "suspended"
+  - shift values:  "Morning", "Evening", "Night"
+
+[STEP 1: CREATE WORKER]
+Method: POST
+URL: http://localhost:4000/api/workers
+Headers:
+  Content-Type: application/json
+Body (raw JSON):
+{
+  "name": "Rohan Verma",
+  "email": "rohan.verma@fuelpoint.in",
+  "phone": "+91 9111222333",
+  "password": "password123",
+  "shift": "Morning",
+  "status": "active"
+}
+Expected Response: 201 Created
+(Copy the "id" from response, e.g., WRK-01 or WRK-12)
+
+--------------------------------------------------------------------------------
+[STEP 2: GET ALL WORKERS]
+Method: GET
+URL: http://localhost:4000/api/workers
+Optional Query Params:
+  http://localhost:4000/api/workers?page=1&limit=10&shift=Morning&status=active
+Expected Response: 200 OK
+
+--------------------------------------------------------------------------------
+[STEP 3: UPDATE WORKER]
+Method: PUT
+URL: http://localhost:4000/api/workers/<WORKER_ID>
+Example: http://localhost:4000/api/workers/WRK-01
+Headers:
+  Content-Type: application/json
+Body (raw JSON):
+{
+  "name": "Rohan Verma",
+  "email": "rohan.verma@fuelpoint.in",
+  "phone": "+91 9111222333",
+  "shift": "Evening",
+  "status": "active"
+}
+Expected Response: 200 OK
+
+--------------------------------------------------------------------------------
+[STEP 4: DELETE WORKER]
+Method: DELETE
+URL: http://localhost:4000/api/workers/<WORKER_ID>
+Example: http://localhost:4000/api/workers/WRK-01
+Expected Response: 200 OK
+
+
+================================================================================
+5. QUICK SUMMARY OF ALL ENDPOINTS
+================================================================================
+Groups:
+  POST   http://localhost:4000/api/groups
+  GET    http://localhost:4000/api/groups
+  PUT    http://localhost:4000/api/groups/:id
+  DELETE http://localhost:4000/api/groups/:id
+
+Customers:
+  POST   http://localhost:4000/api/customers
+  GET    http://localhost:4000/api/customers
+  PUT    http://localhost:4000/api/customers/:id
+  DELETE http://localhost:4000/api/customers/:id
+
+Workers:
+  POST   http://localhost:4000/api/workers
+  GET    http://localhost:4000/api/workers
+  PUT    http://localhost:4000/api/workers/:id
+  DELETE http://localhost:4000/api/workers/:id
+================================================================================

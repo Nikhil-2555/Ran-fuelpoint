@@ -1,0 +1,142 @@
+# FuelStationAdmin - System Architecture Overview
+
+This document provides a comprehensive breakdown of the FuelStationAdmin architecture, including how the frontend, backend, and database interact.
+
+## 1. High-Level Architecture Overview
+
+The system is designed as a decoupled Client-Server Architecture with a relational PostgreSQL database.
+
+```mermaid
+flowchart TD
+    subgraph Frontend ["Frontend (Vite + React + TanStack Router)"]
+        UI["React UI (Shadcn / Tailwind)"]
+        Router["TanStack Router (File-based routing)"]
+        ServiceLayer["adminService.ts (API Client)"]
+        UI --> Router --> ServiceLayer
+    end
+
+    subgraph Backend ["Backend API (Node.js + Express)"]
+        Server["Express Server (src/app.js)"]
+        Routes["Modular Routers (src/routes/)"]
+        Validate["Validation Middleware (Zod Schemas)"]
+        Controllers["Controllers (src/controllers/)"]
+        ErrorHandler["Global Error Handler"]
+        
+        Server --> Routes --> Validate --> Controllers
+        Controllers -.-> ErrorHandler
+    end
+
+    subgraph Database ["Database Layer (PostgreSQL)"]
+        Pool["pg Connection Pool"]
+        Tables["Tables (Users, Workers, Customers, Transactions, etc.)"]
+        ViewsTriggers["Views & Automated Triggers"]
+        
+        Pool --> Tables
+        Tables --> ViewsTriggers
+    end
+
+    ServiceLayer -- "HTTP / REST (JSON) Port 5000" --> Server
+    Controllers -- "SQL Queries" --> Pool
+```
+
+---
+
+## 2. Frontend Layer (`/src`)
+
+The frontend is a single-page web app built for managing fuel station operations (workers, customers, fleet groups, transactions, and reports).
+
+- **Routing & Navigation**: Uses **TanStack Router** with file-based routing:
+  - `_admin.tsx`: The protected root layout providing the sidebar navigation, top bar, and theme.
+  - `_admin.dashboard.tsx`: Analytics, metrics, live dispensers, and fuel sales.
+  - `_admin.workers.tsx`: Worker management (CRUD, status toggles, shift tracking, inline validation).
+  - `_admin.customers.tsx`: Customer and fleet account management with credit limits.
+  - `_admin.groups.tsx`: Fleet group categorization and group filtering.
+  - `_admin.reports.tsx`: Transaction histories and financial summaries.
+
+- **API Communication & State**:
+  - `adminService.ts`: Central API client for sending REST requests to the backend (`http://localhost:5000/api/v1`).
+  - Includes fallback handling to `mockData.ts` if the backend is unreachable during development.
+
+- **Form Validation & User Feedback**:
+  - Validates forms on submission.
+  - Maps detailed field errors from the API directly to the corresponding input box, highlighting invalid fields with red borders and displaying inline messages.
+
+---
+
+## 3. Backend Layer (`/fuelpoint-api`)
+
+The backend is built with **Node.js (ES Modules)** and **Express.js**, structured into modular layers:
+
+- **Entry Point**:
+  - `src/index.js`: Starts the server, initializes the database connection, and listens on port `5000`.
+  - `src/app.js`: Configures Express middleware (CORS, JSON parsing, logging, route registration, and error handling).
+
+- **Routing Layer (`src/routes/`)**:
+  - `routes/index.js`: Main router aggregating all resource sub-routes under `/api/v1/`.
+  - `customers.routes.js`, `workers.routes.js`, `groups.routes.js`, `transactions.routes.js`, `auth.routes.js`.
+
+- **Validation Middleware & Schemas (`src/schemas/`)**:
+  - `validate.js`: Intercepts incoming requests before reaching the controller.
+  - Uses **Zod** schemas (`customer.schema.js`, `worker.schema.js`) to enforce data types (e.g. 10-digit phone numbers, valid email formats, letters-only names).
+
+- **Controllers Layer (`src/controllers/`)**:
+  - Contains business logic and database execution queries.
+  - Example: `worker.controller.js` handles creating a user, assigning the `worker` role, hashing passwords with `bcryptjs`, and querying database rows.
+
+- **Error Handling**:
+  - `errorHandler.js`: Catches all unhandled exceptions, format errors, and validation errors, returning standardized JSON error payloads with `status: 'error'`, `message`, and `details`.
+
+---
+
+## 4. Database Layer (`/fuelpoint-api/sql`)
+
+The database is built on **PostgreSQL** and managed using SQL initialization scripts:
+
+1. `001_create_enums.sql`: Defines custom ENUM types (`user_role`, `user_status`, `payment_method`, `transaction_status`).
+2. `002_create_tables.sql`:
+   - `stations`: Fuel station branch definitions.
+   - `users`: Core authentication for Admins, Managers, and Workers.
+   - `groups`: Corporate customer fleets/groups.
+   - `customers`: Individual and fleet customer profiles with balance tracking.
+   - `vehicles`: Vehicles registered to customers/groups with RFID tags.
+   - `fuel_types`, `tanks`, `dispensers`: Fuel station hardware and inventory.
+   - `transactions`: Fuel sale records, meter readings, volume, and payment statuses.
+3. `003_create_views.sql`: Pre-calculated analytical views (`v_station_summary`, `v_customer_balances`, `v_recent_transactions`).
+4. `004_create_triggers.sql`: Automated triggers for updating `updated_at` timestamps and customer balances upon transaction creation.
+5. `005_seed_data.sql`: Demo stations, admins, workers, groups, and fuel inventory.
+
+---
+
+## 5. End-to-End Request Flow Example (e.g., Creating a Customer/Worker)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as Admin (Browser)
+    participant UI as React Modal Form
+    participant Service as adminService.ts
+    participant Router as Express API Router
+    participant Validate as Zod Schema Validator
+    participant Controller as Controller
+    participant DB as PostgreSQL Database
+
+    User->>UI: Fills form & clicks "Save"
+    UI->>Service: createCustomer(data)
+    Service->>Router: POST /api/v1/customers (JSON body)
+    Router->>Validate: validate(createCustomerSchema)
+    
+    alt Validation Fails (e.g., phone != 10 digits)
+        Validate-->>Router: Error with field details
+        Router-->>Service: 400 Bad Request { details: [{path, message}] }
+        Service-->>UI: Rejects promise
+        UI->>User: Displays red border & inline error below input field
+    else Validation Passes
+        Validate->>Controller: Calls customerController.create()
+        Controller->>DB: INSERT INTO customers (...) RETURNING *
+        DB-->>Controller: New Customer Row
+        Controller-->>Router: 201 Created { status: 'success', data }
+        Router-->>Service: Returns JSON response
+        Service-->>UI: Resolves with created record
+        UI->>UI: Refreshes list, closes modal, shows success toast
+    end
+```
